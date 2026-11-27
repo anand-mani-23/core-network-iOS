@@ -7,22 +7,24 @@
 
 import Foundation
 
+// MARK: - Shared Response & Error Contracts
 
 public struct APIResponseWrapper<T: Decodable & Sendable>: Decodable, Sendable {
     public let success: Bool
     public let message: String
     public let data: T?
+
     enum CodingKeys: String, CodingKey {
         case success, message, data
     }
-    public init(success: Bool, message: String, data: T) {
+
+    public init(success: Bool, message: String, data: T? = nil) {
         self.success = success
         self.message = message
         self.data = data
     }
 }
 
-// MARK: - Errors
 public enum APIError: Error, Sendable {
     case invalidURL(path: String)
     case invalidResponse
@@ -32,10 +34,24 @@ public enum APIError: Error, Sendable {
     case unauthorized
 }
 
-public final class APIClient: Sendable {
+// MARK: - Networking Protocols
+
+public protocol APIClientProtocol: Sendable {
+    func execute(path: String) async throws -> Data
+    func execute<T: Decodable & Sendable>(path: String, as type: T.Type) async throws -> T
+}
+
+public protocol NetworkManaging: Sendable {
+    func fetchData(path: String) async throws -> Data
+    func fetch<T: Decodable & Sendable>(path: String, as type: T.Type) async throws -> T
+}
+
+// MARK: - Concrete Transport Client
+
+public final class APIClient: APIClientProtocol, Sendable {
     private let baseURL: URL
     private let session: URLSession
-   
+
     public init(
         baseURL: URL = URL(string: "https://simplexmobapps.com/api/v1")!,
         session: URLSession = .shared
@@ -43,34 +59,23 @@ public final class APIClient: Sendable {
         self.baseURL = baseURL
         self.session = session
     }
-    
-    func performRequest(
+
+    private func performRequest(
         _ request: URLRequest
     ) async throws -> (Data, URLResponse) {
         try await withCheckedThrowingContinuation { continuation in
-            let task = session.dataTask(with: request) {
-                data,
-                response,
-                error in
-
+            let task = session.dataTask(with: request) { data, response, error in
                 if let error {
-                    continuation.resume(
-                        throwing: error
-                    )
+                    continuation.resume(throwing: error)
                     return
                 }
 
-                guard let data,
-                      let response else {
-                    continuation.resume(
-                        throwing: APIError.invalidResponse
-                    )
+                guard let data, let response else {
+                    continuation.resume(throwing: APIError.invalidResponse)
                     return
                 }
 
-                continuation.resume(
-                    returning: (data, response)
-                )
+                continuation.resume(returning: (data, response))
             }
             task.resume()
         }
@@ -96,11 +101,11 @@ public final class APIClient: Sendable {
         request.setValue("iOS-1.0.0", forHTTPHeaderField: "X-App-Version")
 
         let (data, response) = try await performRequest(request)
-        
+
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
-        
+
         switch httpResponse.statusCode {
         case 200...299:
             return data
@@ -112,7 +117,7 @@ public final class APIClient: Sendable {
             throw APIError.invalidResponse
         }
     }
-    
+
     public func execute<T: Decodable & Sendable>(path: String, as type: T.Type) async throws -> T {
         let data = try await execute(path: path)
         do {
@@ -124,13 +129,26 @@ public final class APIClient: Sendable {
     }
 }
 
-public final class NetworkManager {
-    public let apiClient = APIClient()
-    
-    public init(){}
+// MARK: - Decoupled Network Manager
 
-    public func fetch<T: Decodable>(path: String, as type: T.Type) async throws -> T {
-        let data = try await apiClient.execute(path: path)
-        return try JSONDecoder().decode(type, from: data)
+public final class NetworkManager: NetworkManaging, Sendable {
+    private let apiClient: any APIClientProtocol
+
+    public init(apiClient: any APIClientProtocol) {
+        self.apiClient = apiClient
+    }
+
+    public func fetchData(path: String) async throws -> Data {
+        try await apiClient.execute(path: path)
+    }
+
+    public func fetch<T: Decodable & Sendable>(path: String, as type: T.Type) async throws -> T {
+        do {
+            return try await apiClient.execute(path: path, as: type)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.decodingFailed(error)
+        }
     }
 }
