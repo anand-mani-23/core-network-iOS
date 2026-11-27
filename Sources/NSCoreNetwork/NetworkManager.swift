@@ -111,7 +111,7 @@ public final class APIClient: Sendable {
     }
 }
 
-final class NetworkManager {
+public final class NetworkManager {
     private let apiClient = APIClient()
 
     func fetch<T: Decodable>(path: String, as type: T.Type) async throws -> T {
