@@ -129,7 +129,7 @@ public final class NetworkManager {
     
     public init(){}
 
-    func fetch<T: Decodable>(path: String, as type: T.Type) async throws -> T {
+    public func fetch<T: Decodable>(path: String, as type: T.Type) async throws -> T {
         let data = try await apiClient.execute(path: path)
         return try JSONDecoder().decode(type, from: data)
     }
