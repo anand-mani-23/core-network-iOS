@@ -7,8 +7,6 @@
 
 import Foundation
 
-import Foundation
-
 // MARK: - Errors
 public enum APIError: Error, Sendable {
     case invalidURL(path: String)
@@ -112,7 +110,7 @@ public final class APIClient: Sendable {
 }
 
 public final class NetworkManager {
-    let apiClient = APIClient()
+    public let apiClient = APIClient()
     
     public init(){}
 
