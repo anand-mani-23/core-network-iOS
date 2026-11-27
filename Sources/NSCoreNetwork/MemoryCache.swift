@@ -12,11 +12,11 @@ public final class MemoryCache {
     
     let cache = NSCache<AnyObject, AnyObject>()
 
-    func object(forKey key: AnyObject) -> AnyObject? {
+    public func object(forKey key: AnyObject) -> AnyObject? {
         cache.object(forKey: key)
     }
 
-    func setObject(_ obj: AnyObject, forKey key: AnyObject) {
+    public func setObject(_ obj: AnyObject, forKey key: AnyObject) {
         cache.setObject(obj, forKey: key)
     }
 }
