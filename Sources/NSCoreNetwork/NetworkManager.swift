@@ -7,6 +7,21 @@
 
 import Foundation
 
+
+public struct APIResponseWrapper<T: Decodable & Sendable>: Decodable, Sendable {
+    public let success: Bool
+    public let message: String
+    public let data: T?
+    enum CodingKeys: String, CodingKey {
+        case success, message, data
+    }
+    public init(success: Bool, message: String, data: T) {
+        self.success = success
+        self.message = message
+        self.data = data
+    }
+}
+
 // MARK: - Errors
 public enum APIError: Error, Sendable {
     case invalidURL(path: String)
