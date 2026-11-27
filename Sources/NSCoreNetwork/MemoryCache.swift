@@ -7,7 +7,9 @@
 
 import Foundation
 
-final class MemoryCache {
+public final class MemoryCache {
+    public init(){}
+    
     let cache = NSCache<AnyObject, AnyObject>()
 
     func object(forKey key: AnyObject) -> AnyObject? {
